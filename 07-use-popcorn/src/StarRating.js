@@ -47,6 +47,7 @@ export default function StarRating({ maxRating=5, color="#fcc419", size=48, clas
                             onHover={() => handleHoverRating(i + 1)}
                             onNotHover={() => handleHoverRating(0)}
                             isFilled={hoverRating ? hoverRating >= i + 1 : rating >= i + 1}
+                            size={size}
                         />
                     </span>
                 ))}
