@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import StarRating from "./StarRating";
+import { useMovies } from "./useMovies";
+import { useKeyPressEvent } from "./useKeyPressEvent";
 
 const average = (arr) =>
     arr.reduce((acc, cur, _, arr) => acc + cur / arr.length, 0);
@@ -7,52 +9,15 @@ const average = (arr) =>
 const KEY = "e7a4eaff";
 
 export default function App() {
-    const [movies, setMovies] = useState([]);
     const [watched, setWatched] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
     const [selectedID, setSelectedID] = useState("");
     const [query, setQuery] = useState("");
+    const {movies, loading, error} = useMovies(query);
 
     const handleSelectedMovie = id => setSelectedID(cId => cId === id ? "" : id);
     const handleCloseDetails = () => setSelectedID("");
     const handleAddWatch = (movie) => setWatched(watched => [...watched, movie]);
     const handleDeleteWatched = (id) => setWatched(watched => watched.filter(mov => mov.imdbID !== id))
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const fetchMovies = async (query) => {
-            setLoading(true);
-
-            try {
-                if (query.length < 4)
-                    throw new Error("Must provide a query to search");
-
-                const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${query}`, {signal: controller.signal});
-                if (!res.ok)
-                    throw new Error("Problem with fetching data");
-
-                const data = await res.json();
-                if (data.Response === "False")
-                    throw new Error("Movie not found");
-
-                setMovies(data.Search);
-                setError("");
-            }
-            catch (err) {
-                if (err.name !== "AbortError") {
-                    setError(err.message);
-                }
-                console.log(err.message);
-            }
-            finally {
-                setLoading(false);
-            }
-        }
-
-        fetchMovies(query);
-        return () => controller.abort();
-    }, [query]);
 
     return (
         <>
@@ -105,6 +70,17 @@ function Logo() {
 }
 
 function SearchBar({ query, setQuery }) {
+    const sbar = useRef();
+    useKeyPressEvent("enter", () => {
+        if (document.activeElement === sbar.current)
+            return;
+        sbar.current.focus();
+        // setQuery("");
+    })
+    useKeyPressEvent("escape", () => {
+        sbar.current.blur();
+    })
+
     return (
         <input
             className="search"
@@ -112,6 +88,7 @@ function SearchBar({ query, setQuery }) {
             placeholder="Search movies..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            ref={sbar}
         />
     );
 }
@@ -176,14 +153,7 @@ function MovieDetails({ id, onCloseDetails, onAddWatch, watchedList }) {
         Genre: genre,
     } = details;
 
-    useEffect(() => {
-        const callback = (e) => {
-            if (e.code === "Escape")
-                onCloseDetails();
-        }
-        document.addEventListener("keydown", callback);
-        return () => document.removeEventListener("keydown", callback);
-    }, [onCloseDetails])
+    useKeyPressEvent("escape", onCloseDetails);
 
     useEffect(() => {
         const fetchDetails = async () => {
